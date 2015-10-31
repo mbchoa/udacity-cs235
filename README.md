@@ -1,1 +1,1 @@
-Udacity CS235: Web Development
+Udacity CS253: Web Development
