@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h4>This assignment makes use of the following new concepts and technologies:</h4>
+<ul>
+	<li>Database: using Google's App Engine Datastore to store data</li>
+	<li>SQL: use of query language to read and write from database</li>
+</ul>
+<h4>This assignment reinforces the following previously taught topics:</h4>
+<ul>
+	<li>Templates</li>
+	<li>Routing</li>
+	<li>Input Forms</li>
+	<li>HTTP POST Method Handling</li>
+</ul>
+
+<hr>
+
+{% for post in posts %}
+	<div class="post">
+		<div class="post-subject">{{post.subject}}</div>
+		<div class="post-content">{{post.content}}</div>
+	</div>
+{% endfor %}
+
+{% endblock %}
