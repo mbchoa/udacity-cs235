@@ -48,7 +48,6 @@ class BlogHandler(Handler):
 
 class BlogPostHandler(Handler):
 	def get(self):
-		
 		self.render("newpost.html")
 
 	def post(self):
@@ -58,12 +57,18 @@ class BlogPostHandler(Handler):
 		if subject and content:
 			p = Post(subject = subject, content = content)
 			p.put()
-
-
-			self.redirect("/lesson3/blog/")
+			post_id = str(p.key().id())
+			self.redirect("/lesson3/blog/%s" % post_id)
 		else:
 			error = "we need both a subject and content!"
 			self.render("newpost.html", error=error)
+
+class BlogPermalinkHandler(Handler):
+	def get(self, post_id):
+		if post_id and int(post_id):
+			p = Post.get_by_id(int(post_id))
+			if p:
+				self.render("permalink.html", post = p)
 
 app = webapp2.WSGIApplication([('/', MainPage),
 							   ('/lesson2/rot13', Lesson2Rot13),
@@ -72,4 +77,5 @@ app = webapp2.WSGIApplication([('/', MainPage),
 							   ('/lesson2/fizzbuzz', FizzBuzzHandler),
 							   ('/lesson2/shopping_list', ShoppingListHandler),
 							   ('/lesson3/blog', BlogHandler),
-							   ('/lesson3/blog/newpost', BlogPostHandler)], debug=True)
+							   ('/lesson3/blog/newpost', BlogPostHandler),
+							   ('/lesson3/blog/([0-9]+)', BlogPermalinkHandler)], debug=True)
