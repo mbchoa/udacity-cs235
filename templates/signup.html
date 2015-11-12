@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block header %}
+
+<style>
+	form  { display: table;      }
+	p     { display: table-row;  }
+	label { display: table-cell; text-align: right}
+	input { display: table-cell; }
+	span { display: table-cell; }
+</style>
+
+{% endblock%}
+
+{% block content %}
+
+<h1>Signup</h1>
+<form method="post">
+	<p>
+		<label>Username</label>
+		<input name="username" value={{username_value}}>
+		<span style="color: red">{{username_error}}</span>
+	</p>
+	<p>
+		<label>Password</label>
+		<input type="password" name="password">
+		<span style="color: red">{{password_error}}</span>
+	</p>
+	<p>
+		<label>Verify Password</label>
+		<input type="password" name="verify">
+		<span style="color: red">{{verify_error}}</span>
+	</p>
+	<p>
+		<label>Email (optional)</label>
+		<input name="email" value={{email_value}}>
+		<span style="color: red">{{email_error}}</span>
+	</p>
+	<input type="submit">
+</form>
+
+{% endblock %}

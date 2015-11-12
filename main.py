@@ -1,10 +1,9 @@
 import os
-
+import re
 import webapp2
 import jinja2
 
 from lesson2.cipher import Lesson2Rot13
-from lesson2.signup import Lesson2Signup, Lesson2SignupThanks
 from google.appengine.ext import db
 
 template_dir = os.path.join(os.path.dirname(__file__), 'templates')
@@ -20,6 +19,67 @@ class Handler(webapp2.RequestHandler):
 
 	def render(self, template, **kw):
 		self.write(self.render_str(template, **kw))
+
+class Lesson2Signup(Handler):
+	def write_form(self, username_value="", email_value="", username_error="", password_error="", verify_error="", email_error=""):
+		self.render("signup.html", username_value=username_value,
+									email_value=email_value,
+									username_error=username_error,
+									password_error=password_error,
+									verify_error=verify_error,
+									email_error=email_error)
+										
+	def get(self):
+		self.write_form()
+	
+	def post(self):
+		username = self.request.get('username')
+		password = self.request.get('password')
+		verify = self.request.get('verify')
+		email = self.request.get('email')
+			
+		isUsernameValid = self.valid_username(username)
+		isPasswordValid = self.valid_password(password)
+		passwordsMatch = password == verify
+		isEmailValid = self.valid_email(email)
+		
+		username_error_message = ""
+		password_error_message = ""
+		verify_error_message = ""
+		email_error_message = ""
+		
+		if not isUsernameValid:
+			username_error_message = "That's not a valid username."
+		if not isPasswordValid:
+			password_error_message = "That wasn't a valid password."
+		if not passwordsMatch:
+			verify_error_message = "Your passwords didn't match."
+		if len(email) > 0 and not isEmailValid:
+			email_error_message = "That's not a valid email."
+		
+		if isUsernameValid and isPasswordValid and passwordsMatch and (len(email) == 0 or isEmailValid):
+			self.redirect('/lesson2/signup/thanks?username=' + username)
+		else:
+			self.write_form(username, 
+							email,
+							username_error_message, 
+							password_error_message, 
+							verify_error_message, 
+							email_error_message)
+
+	def valid_username(self, username):
+   		return re.compile(r"^[a-zA-Z0-9_-]{3,20}$").match(username)
+	
+	def valid_password(self, password):
+	    return re.compile(r"^.{3,20}$").match(password)
+	
+	def valid_email(self, email):
+	    return re.compile(r"^[\S]+@[\S]+\.[\S]+$").match(email)
+
+class Lesson2SignupThanks(Handler):
+	def get(self):
+		username = self.request.get('username')
+		self.render("signup_thanks.html", username=username)
 
 class MainPage(Handler):
 	def get(self):
