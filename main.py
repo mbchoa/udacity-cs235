@@ -2,7 +2,10 @@ import os
 import re
 import webapp2
 import jinja2
-
+import hmac
+import random
+import string
+import hashlib
 from lesson2.cipher import Lesson2Rot13
 from google.appengine.ext import db
 
@@ -20,7 +23,22 @@ class Handler(webapp2.RequestHandler):
 	def render(self, template, **kw):
 		self.write(self.render_str(template, **kw))
 
-class Lesson2Signup(Handler):
+	def set_secure_cookie(self, name, val):
+		cookie_val = make_secure_val(val)
+		self.response.headers.add_header(
+			'Set-Cookie',
+			'%s=%s; Path=/' % (name, cookie_val))
+
+	def read_secure_cookie(self, name):
+		cookie_val = self.request.cookies.get(name)
+		return cookie_val and check_secure_val(cookie_val)
+
+	def initialize(self, *a, **kw):
+		webapp2.RequestHandler.initialize(self, *a, **kw)
+		uid = self.read_secure_cookie('user_id')
+		self.user = uid and User.by_id(int(uid))
+
+class Signup(Handler):
 	def write_form(self, username_value="", email_value="", username_error="", password_error="", verify_error="", email_error=""):
 		self.render("signup.html", username_value=username_value,
 									email_value=email_value,
@@ -33,15 +51,15 @@ class Lesson2Signup(Handler):
 		self.write_form()
 	
 	def post(self):
-		username = self.request.get('username')
-		password = self.request.get('password')
-		verify = self.request.get('verify')
-		email = self.request.get('email')
+		self.username = self.request.get('username')
+		self.password = self.request.get('password')
+		self.verify = self.request.get('verify')
+		self.email = self.request.get('email')
 			
-		isUsernameValid = self.valid_username(username)
-		isPasswordValid = self.valid_password(password)
-		passwordsMatch = password == verify
-		isEmailValid = self.valid_email(email)
+		isUsernameValid = self.valid_username(self.username)
+		isPasswordValid = self.valid_password(self.password)
+		passwordsMatch = self.password == self.verify
+		isEmailValid = self.valid_email(self.email)
 		
 		username_error_message = ""
 		password_error_message = ""
@@ -54,19 +72,17 @@ class Lesson2Signup(Handler):
 			password_error_message = "That wasn't a valid password."
 		if not passwordsMatch:
 			verify_error_message = "Your passwords didn't match."
-		if len(email) > 0 and not isEmailValid:
+		if len(self.email) > 0 and not isEmailValid:
 			email_error_message = "That's not a valid email."
 		
-		if isUsernameValid and isPasswordValid and passwordsMatch and (len(email) == 0 or isEmailValid):
-			self.redirect('/lesson2/signup/thanks?username=' + username)
+		if isUsernameValid and isPasswordValid and passwordsMatch and (len(self.email) == 0 or isEmailValid):
+			self.done()
 		else:
-			self.write_form(username, 
-							email,
-							username_error_message, 
-							password_error_message, 
-							verify_error_message, 
-							email_error_message)
+			self.write_form(self.username, self.email, username_error_message, password_error_message, verify_error_message, email_error_message)
 
+	def done(self, *a, **kw):
+		raise NotImplementedError
+		
 	def valid_username(self, username):
    		return re.compile(r"^[a-zA-Z0-9_-]{3,20}$").match(username)
 	
@@ -75,6 +91,10 @@ class Lesson2Signup(Handler):
 	
 	def valid_email(self, email):
 	    return re.compile(r"^[\S]+@[\S]+\.[\S]+$").match(email)
+
+class Unit2Signup(Signup):
+	def done(self):
+		self.redirect('/lesson2/signup/thanks?username=' + self.username)
 
 class Lesson2SignupThanks(Handler):
 	def get(self):
@@ -130,12 +150,83 @@ class BlogPermalinkHandler(Handler):
 			if p:
 				self.render("permalink.html", post = p)
 
+secret = '@0Tt~[^[0ihubIXP\U9yQny0s4NB/nYG6GOm:Wf1)r(>/0g;d6Ru](&^'
+
+def make_secure_val(val):
+	return '%s|%s' % (val, hmac.new(secret, val).hexdigest())
+
+def check_secure_val(secure_val):
+	val = secure_val.split('|')[0]
+	if secure_val == make_secure_val(val):
+		return val
+
+def make_salt(length = 5):
+	return ''.join(random.choice(string.letters) for x in xrange(length))
+
+def make_pw_hash(name, pw, salt = None):
+	if not salt:
+		salt = make_salt()
+	h = hashlib.sha256(name + pw + salt).hexdigest()
+	return '%s,%s' % (salt, h)
+
+def valid_pw(name, password, h):
+	salt = h.split(',')[0]
+	return h == make_pw_hash(name, password, salt)
+
+def users_key(group = 'default'):
+	return db.Key.from_path('users', group)
+
+class User(db.Model):
+	name = db.StringProperty(required = True)
+	pw_hash = db.StringProperty(required = True)
+	email = db.StringProperty()
+
+	@classmethod
+	def by_id(cls, uid):
+		return User.get_by_id(uid, parent = users_key())
+
+	@classmethod
+	def by_name(cls, name):
+		return User.all().filter('name =', name).get()
+	
+	@classmethod
+	def register(cls, name, pw, email = None):
+		pw_hash = make_pw_hash(name, pw)
+		return User(parent = users_key(),
+					name = name,
+					pw_hash = pw_hash,
+					email = email)
+
+class Register(Signup):
+	def done(self):
+		#make sure user does not exist already
+		u = User.by_name(self.username)
+		if u:
+			msg = 'Username already exists.'
+			self.render('signup.html', username_error = msg)
+		else:
+			u = User.register(self.username, self.password, self.email)
+			u.put()
+
+			self.set_secure_cookie('user_id', str(u.key().id()))
+			self.redirect('/lesson4/welcome')
+			
+
+class Lesson4Welcome(Handler):
+	def get(self):
+		if self.user:
+			self.render('signup_thanks.html', username=self.user.name)
+		else:
+			self.redirect('/signup')
+			
 app = webapp2.WSGIApplication([('/', MainPage),
 							   ('/lesson2/rot13', Lesson2Rot13),
-							   ('/lesson2/signup', Lesson2Signup),
+							   ('/lesson2/signup', Unit2Signup),
 							   ('/lesson2/signup/thanks', Lesson2SignupThanks),
 							   ('/lesson2/fizzbuzz', FizzBuzzHandler),
 							   ('/lesson2/shopping_list', ShoppingListHandler),
 							   ('/lesson3/blog', BlogHandler),
 							   ('/lesson3/blog/newpost', BlogPostHandler),
-							   ('/lesson3/blog/([0-9]+)', BlogPermalinkHandler)], debug=True)
+							   ('/lesson3/blog/([0-9]+)', BlogPermalinkHandler),
+							   ('/lesson4/signup', Register),
+							   ('/lesson4/welcome', Lesson4Welcome)], debug=True)
