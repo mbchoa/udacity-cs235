@@ -219,6 +219,39 @@ class Lesson4Welcome(Handler):
 		else:
 			self.redirect('/signup')
 			
+class Login(Register):
+	def write_form(self, username_value="", username_error="", password_error=""):
+		self.render("login.html", username_value=username_value,
+									username_error=username_error,
+									password_error=password_error)
+
+	def get(self):
+		self.write_form()
+
+	def post(self):
+		self.username = self.request.get('username')
+		self.password = self.request.get('password')
+		self.done()
+
+	def done(self):
+		u = User.by_name(self.username)
+		if u:
+			isValidPassword = valid_pw(self.username, self.password, u.pw_hash)
+			if isValidPassword:
+				self.set_secure_cookie('user_id', str(u.key().id()))
+				self.redirect('/lesson4/welcome')
+			else:
+				self.write_form(self.username, "", "Incorrect password")
+		else:
+			self.write_form(self.username, "User does not exist")
+
+class Logout(Handler):
+	def get(self):
+		pass
+
+	def post(self):
+		pass
+		
 app = webapp2.WSGIApplication([('/', MainPage),
 							   ('/lesson2/rot13', Lesson2Rot13),
 							   ('/lesson2/signup', Unit2Signup),
@@ -229,4 +262,6 @@ app = webapp2.WSGIApplication([('/', MainPage),
 							   ('/lesson3/blog/newpost', BlogPostHandler),
 							   ('/lesson3/blog/([0-9]+)', BlogPermalinkHandler),
 							   ('/lesson4/signup', Register),
-							   ('/lesson4/welcome', Lesson4Welcome)], debug=True)
+							   ('/lesson4/welcome', Lesson4Welcome),
+							   ('/lesson4/login', Login),
+							   ('/lesson4/logout', Logout)], debug=True)
