@@ -217,7 +217,7 @@ class Lesson4Welcome(Handler):
 		if self.user:
 			self.render('signup_thanks.html', username=self.user.name)
 		else:
-			self.redirect('/signup')
+			self.redirect('/lesson4/signup')
 			
 class Login(Register):
 	def write_form(self, username_value="", username_error="", password_error=""):
@@ -247,10 +247,10 @@ class Login(Register):
 
 class Logout(Handler):
 	def get(self):
-		pass
-
-	def post(self):
-		pass
+		self.response.headers.add_header(
+			'Set-Cookie',
+			'%s=%s; Path=/' % ('user_id', ''))
+		self.redirect('/lesson4/signup')
 		
 app = webapp2.WSGIApplication([('/', MainPage),
 							   ('/lesson2/rot13', Lesson2Rot13),
