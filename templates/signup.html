@@ -39,4 +39,14 @@
 	<input type="submit">
 </form>
 
+<hr>
+<h2>Users List</h2>
+{% if users %}
+	<ul>
+	{% for user in users %}
+		<li>{{user.name}}</li>
+	{% endfor %}
+	</ul>
+{% endif %}
+
 {% endblock %}

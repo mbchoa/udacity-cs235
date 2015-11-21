@@ -198,6 +198,10 @@ class User(db.Model):
 					email = email)
 
 class Register(Signup):
+	def get(self):
+		users = db.GqlQuery("SELECT * from User")
+		self.render("signup.html", users = users)
+		
 	def done(self):
 		#make sure user does not exist already
 		u = User.by_name(self.username)
